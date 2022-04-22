@@ -1,5 +1,5 @@
 # Copyright (c) 2021 The Regents of the University of California
-# All rights reserved.
+# All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -24,23 +24,31 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""
-Specifies the coherence protocol enum
-"""
+from ......utils.override import overrides
+from ..abstract_directory import AbstractDirectory
 
-from enum import Enum
+from m5.objects import (
+    MessageBuffer,
+    RubyDirectoryMemory,
+)
 
 
-class CoherenceProtocol(Enum):
-    MESI_THREE_LEVEL = 1
-    MESI_THREE_LEVEL_HTM = 2
-    ARM_MOESI_HAMMER = 3
-    GARNET_STANDALONE = 4
-    MESI_TWO_LEVEL = 5
-    MOESI_CMP_DIRECTORY = 6
-    MOESI_CMP_TOKEN = 7
-    MOESI_AMD_BASE = 8
-    MI_EXAMPLE = 9
-    GPU_VIPER = 10
-    CHI = 11
-    FMESI_TWO_LEVEL = 12
+class Directory(AbstractDirectory):
+    def __init__(self, network, cache_line_size, mem_range, port):
+
+        super().__init__(network, cache_line_size)
+        self.addr_ranges = [mem_range]
+        self.directory = RubyDirectoryMemory()
+        # Connect this directory to the memory side.
+        self.memory_out_port = port
+
+    @overrides(AbstractDirectory)
+    def connectQueues(self, network):
+        self.requestToDir = MessageBuffer()
+        self.requestToDir.in_port = network.out_port
+        self.responseToDir = MessageBuffer()
+        self.responseToDir.in_port = network.out_port
+        self.responseFromDir = MessageBuffer()
+        self.responseFromDir.out_port = network.in_port
+        self.requestToMemory = MessageBuffer()
+        self.responseFromMemory = MessageBuffer()
