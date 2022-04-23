@@ -89,7 +89,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     E, AccessPermission:Read_Only, desc="a L1 cache entry Exclusive";
     M, AccessPermission:Read_Write, desc="a L1 cache entry Modified", format="!b";
     ////for FMESI
-    F, AccessPermission:Read_Only, desc="a L1 cache entry Forward";
+    //F, AccessPermission:Read_Only, desc="a L1 cache entry Forward";
 
     // Transient States
     IS, AccessPermission:Busy, desc="L1 idle, issued GETS, have not seen response yet";
@@ -128,8 +128,8 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     Data,       desc="Data for processor";
     Data_Exclusive,       desc="Data for processor";
     DataS_fromL1,       desc="data for GETS request, need to unblock directory";
-    Data_all_Acks,       desc="Data for processor, all acks";
-
+    Data_all_Acks_S,       desc="Data for processor to go to S, all acks";
+    Data_all_Acks_F,       desc="Data for processor to go to F, all acks";
     Ack,        desc="Ack for processor";
     Ack_all,      desc="Last ack for processor";
 
@@ -408,8 +408,11 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
               trigger(Event:DataS_fromL1, in_msg.addr, cache_entry, tbe);
 
           } else if ( (getPendingAcks(tbe) - in_msg.AckCount) == 0 ) {
-            trigger(Event:Data_all_Acks, in_msg.addr, cache_entry, tbe);
-          } else {
+            trigger(Event:Data_all_Acks_S, in_msg.addr, cache_entry, tbe);
+          } else if ( (getPendingAcks(tbe) - in_msg.AckCount) == -1) {
+            trigger(Event:Data_all_Acks_F, in_msg.addr, cache_entry, tbe);
+          }  
+          else {
             trigger(Event:Data, in_msg.addr, cache_entry, tbe);
           }
         } else if (in_msg.Type == CoherenceResponseType:ACK) {
@@ -1133,29 +1136,20 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
   }
 
   // Transitions from Shared
-  ////added forward state to teh list of beginners
-  transition({S,F,E,M}, Load) {
+  transition({S,E,M}, Load) {
     h_load_hit;
     uu_profileDataHit;
     po_observeHit;
     k_popMandatoryQueue;
   }
 
-  ////added forward state to teh list of beginners
-  transition({S,F,E,M}, Ifetch) {
+ 
+  transition({S,E,M}, Ifetch) {
     h_ifetch_hit;
     uu_profileInstHit;
     po_observeHit;
     k_popMandatoryQueue;
   }
-//// adding F to SM for forward state
-  transition(F, Store, SM) {
-    i_allocateTBE;
-    c_issueUPGRADE;
-    uu_profileDataMiss;
-    k_popMandatoryQueue;
-  }
-
   transition(S, Store, SM) {
     i_allocateTBE;
     c_issueUPGRADE;
@@ -1163,19 +1157,14 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     k_popMandatoryQueue;
   }
 
-  //// added F to I transition
-  transition(F, {L1_Replacement}, I) {
-    forward_eviction_to_cpu;
-    ff_deallocateL1CacheBlock;
-  }
+
 
   transition(S, {L1_Replacement, PF_L1_Replacement}, I) {
     forward_eviction_to_cpu;
     ff_deallocateL1CacheBlock;
   }
 
-////added forward state to teh list of beginners
-  transition({S,F}, Inv, I) {
+  transition(S, Inv, I) {
     forward_eviction_to_cpu;
     fi_sendInvAck;
     l_popRequestQueue;
@@ -1198,23 +1187,21 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     ff_deallocateL1CacheBlock;
   }
 
-////add transition for F state on Fwd_GETS
-  transition({E,F}, Inv, I) {
+  transition(E, Inv, I) {
     // don't send data
     forward_eviction_to_cpu;
     fi_sendInvAck;
     l_popRequestQueue;
   }
 
-////add transition for F state on Fwd_GETS
-  transition({E,F}, Fwd_GETX, I) {
+
+  transition(E, Fwd_GETX, I) {
     forward_eviction_to_cpu;
     d_sendDataToRequestor;
     l_popRequestQueue;
   }
 
-  ////add transition for F state on Fwd_GETS
-  transition({E,F}, {Fwd_GETS, Fwd_GET_INSTR}, S) {
+  transition(E, {Fwd_GETS, Fwd_GET_INSTR}, S) {
     d_sendDataToRequestor;
     d2_sendDataToL2;
     l_popRequestQueue;
@@ -1280,14 +1267,8 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     l_popRequestQueue;
   }
 
-  ////change S to F for forward state
-   transition(IS, Data_all_Acks, F) {
-    u_writeDataToL1Cache;
-    hx_load_hit;
-    s_deallocateTBE;
-    o_popIncomingResponseQueue;
-    kd_wakeUpDependents;
-  } 
+
+  ////commented for forward state
   //transition(IS, Data_all_Acks, S) {
   //  u_writeDataToL1Cache;
   //  hx_load_hit;
@@ -1304,7 +1285,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     kd_wakeUpDependents;
   }
 
-  transition(IS_I, Data_all_Acks, I) {
+  transition(IS_I, Data_all_Acks_S, I) {
     u_writeDataToL1Cache;
     hx_load_hit;
     s_deallocateTBE;
@@ -1317,8 +1298,9 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     o_popIncomingResponseQueue;
     kd_wakeUpDependents;
   }
-////change S to F for forward state
-  transition(IS, DataS_fromL1, F) {
+
+
+  transition(IS, DataS_fromL1, S) {
     u_writeDataToL1Cache;
     j_sendUnblock;
     hx_load_hit;
@@ -1326,15 +1308,6 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     o_popIncomingResponseQueue;
     kd_wakeUpDependents;
   }
-
-  //transition(IS, DataS_fromL1, S) {
-  //  u_writeDataToL1Cache;
-  //  j_sendUnblock;
-  //  hx_load_hit;
-  //  s_deallocateTBE;
-  //  o_popIncomingResponseQueue;
-  //  kd_wakeUpDependents;
-  //}
 
   transition(PF_IS, DataS_fromL1, S) {
     u_writeDataToL1Cache;
@@ -1420,7 +1393,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     o_popIncomingResponseQueue;
   }
 
-  transition(IM, Data_all_Acks, M) {
+  transition(IM, Data_all_Acks_S, M) {
     u_writeDataToL1Cache;
     hhx_store_hit;
     jj_sendExclusiveUnblock;
@@ -1476,4 +1449,92 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     o_popIncomingResponseQueue;
     kd_wakeUpDependents;
   }
+
+//transitions for Forward state
+
+  ////added forward state to teh list of beginners
+  transition(F, Load) {
+    h_load_hit;
+    uu_profileDataHit;
+    po_observeHit;
+    k_popMandatoryQueue;
+  }
+
+ ////added forward state to teh list of beginners
+  transition(F, Ifetch) {
+    h_ifetch_hit;
+    uu_profileInstHit;
+    po_observeHit;
+    k_popMandatoryQueue;
+  }
+
+//// adding F to SM for forward state
+  transition(F, Store, SM) {
+    i_allocateTBE;
+    c_issueUPGRADE;
+    uu_profileDataMiss;
+    k_popMandatoryQueue;
+  }
+
+  //// added F to I transition
+  transition(F, {L1_Replacement}, M_I) {
+    forward_eviction_to_cpu;
+    i_allocateTBE;
+    g_issuePUTX;   // send data, but hold in case forwarded request
+    ff_deallocateL1CacheBlock;
+  }
+
+////added forward state to teh list of beginners
+  transition(F, Inv, I) {
+    forward_eviction_to_cpu;
+    fi_sendInvAck;
+    l_popRequestQueue;
+  }
+
+////add transition for F state on Fwd_GETS
+  transition(F, Fwd_GETX, I) {
+    forward_eviction_to_cpu;
+    d_sendDataToRequestor;
+    l_popRequestQueue;
+  }
+
+  ////add transition for F state on Fwd_GETS
+  transition(F, {Fwd_GETS, Fwd_GET_INSTR}, S) {
+    d_sendDataToRequestor;
+    d2_sendDataToL2;
+    l_popRequestQueue;
+  }
+
+  ////data to go to F state
+  transition(IS, Data_all_Acks_F, F) {
+   u_writeDataToL1Cache;
+   j_sendUnblock;  //// unblock sent to L2
+   hx_load_hit;
+   s_deallocateTBE;
+   o_popIncomingResponseQueue;
+   kd_wakeUpDependents;
+  } 
+
+  ////data to go to S state
+  transition(IS, Data_all_Acks_S, S) {
+   u_writeDataToL1Cache;
+   hx_load_hit;
+   s_deallocateTBE;
+   o_popIncomingResponseQueue;
+   kd_wakeUpDependents;
+  } 
+
+////change S to F for forward state
+  transition(IS, DataS_fromL1, F) {
+    u_writeDataToL1Cache;
+    j_sendUnblock;
+    hx_load_hit;
+    s_deallocateTBE;
+    o_popIncomingResponseQueue;
+    kd_wakeUpDependents;
+  }
+
+
 }
+
+
