@@ -70,6 +70,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     // Base states
     NP, AccessPermission:Invalid, desc="Not present in either cache";
     SS, AccessPermission:Read_Only, desc="L2 cache entry Shared, also present in one or more L1s";
+    SF, AccessPermission:Read_Only, desc="L2 cache entry Shared, one L1 forwarding";
     M, AccessPermission:Read_Write, desc="L2 cache entry Modified, not present in any L1s", format="!b";
     MT, AccessPermission:Maybe_Stale, desc="L2 cache entry Modified in a local L1, assume L2 copy stale", format="!b";
 
@@ -134,7 +135,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
   structure(Entry, desc="...", interface="AbstractCacheEntry") {
     State CacheState,          desc="cache state";
     NetDest Sharers,               desc="tracks the L1 shares on-chip";
-    MachineID Exclusive,          desc="Exclusive holder of block";
+    MachineID Exclusive,          desc="Exclusive holder of block or forwarder";
     DataBlock DataBlk,       desc="data for the block";
     bool Dirty, default="false", desc="data is dirty";
   }
@@ -780,6 +781,15 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     }
   }
 
+  //// Same behavior as \m, but doesn't clear sharers list.
+  action(mmf_markForwarder, "\mf", desc = "set the forwarder") {
+    peek(L1unblockNetwork_in, RequestMsg) {
+      assert(is_valid(cache_entry));
+      cache_entry.Exclusive := in_msg.Requestor;
+      addSharer(address, in_msg.Requestor, cache_entry);
+    }
+  }
+
   action(mm_markExclusive, "\m", desc="set the exclusive owner") {
     peek(L1RequestL2Network_in, RequestMsg) {
       assert(is_valid(cache_entry));
@@ -902,7 +912,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     o_popIncomingResponseQueue;
   }
 
-  transition(IS, Mem_Data, SS) {
+  transition(IS, Mem_Data, SF) {
     m_writeDataToCache;
     e_sendDataToGetSRequestors;
     s_deallocateTBE;
@@ -972,6 +982,52 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
   }
 
 
+  //// transitions from SF
+  transition(SF, {L1_GETS, L1_GET_INSTR}) {
+    ds_sendSharedDataToRequestor;
+    nn_addSharer;
+    set_setMRU;
+    uu_profileHit;
+    jj_popL1RequestQueue;
+  }
+
+  transition(SF, L1_GETX, SS_MB) {
+    d_sendDataToRequestor;
+    // fw_sendFwdInvToSharers;
+    fwm_sendFwdInvToSharersMinusRequestor;
+    set_setMRU;
+    uu_profileHit;
+    jj_popL1RequestQueue;
+  }
+
+  transition(SF, L1_UPGRADE, SS_MB) {
+    fwm_sendFwdInvToSharersMinusRequestor;
+    ts_sendInvAckToUpgrader;
+    set_setMRU;
+    uu_profileHit;
+    jj_popL1RequestQueue;
+  }
+
+  transition(SF, L2_Replacement_clean, I_I) {
+    i_allocateTBE;
+    f_sendInvToSharers;
+    rr_deallocateL2CacheBlock;
+  }
+
+  transition(SF, {L2_Replacement, MEM_Inv}, S_I) {
+    i_allocateTBE;
+    f_sendInvToSharers;
+    rr_deallocateL2CacheBlock;
+  }
+
+  transition(SF, {L1_PUTX, L1_PUTX_old}, SS) {
+    //// Don't need to do anything with WB data, just send an ack.
+    t_sendWBAck;
+    jj_popL1RequestQueue;
+    //// TODO(subhav): Remove from sharers list
+  }
+
+
   transition(M, L1_GETX, MT_MB) {
     d_sendDataToRequestor;
     set_setMRU;
@@ -979,7 +1035,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     jj_popL1RequestQueue;
   }
 
-  transition(M, L1_GET_INSTR, SS) {
+  transition(M, L1_GET_INSTR, SF) {
     d_sendDataToRequestor;
     nn_addSharer;
     set_setMRU;
@@ -1064,13 +1120,13 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     o_popIncomingResponseQueue;
   }
 
-  transition(MT_IB, {WB_Data, WB_Data_clean}, SS) {
+  transition(MT_IB, {WB_Data, WB_Data_clean}, SF) {
     m_writeDataToCache;
     o_popIncomingResponseQueue;
     kd_wakeUpDependents;
   }
 
-  transition(MT_SB, Unblock, SS) {
+  transition(MT_SB, Unblock, SF) {
     nnu_addSharerFromUnblock;
     k_popUnblockQueue;
     kd_wakeUpDependents;
