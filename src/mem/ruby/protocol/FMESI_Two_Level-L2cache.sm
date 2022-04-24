@@ -87,6 +87,8 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     IM, AccessPermission:Busy, desc="L2 idle, got L1_GETX, issued memory fetch, have not seen response(s) yet";
 
     // Blocking states
+    SF_B, AccessPermission:Busy, desc="Blocked for L1_GETS going to SF";
+
     SS_MB, AccessPermission:Busy, desc="Blocked for L1_GETX from SS";
     MT_MB, AccessPermission:Busy, desc="Blocked for L1_GETX from MT";
 
@@ -890,7 +892,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     o_popIncomingResponseQueue;
   }
 
-  transition(IS, Mem_Data, SF) {
+  transition(IS, Mem_Data, SF_B) {
     m_writeDataToCache;
     e_sendDataToGetSRequestors;
     s_deallocateTBE;
@@ -921,7 +923,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
   }
 
   // transitions from SS
-  transition(SS, {L1_GETS, L1_GET_INSTR}) {
+  transition(SS, {L1_GETS, L1_GET_INSTR}, SF_B) {
     ds_sendSharedDataToRequestor;
     nn_addSharer;
     mmf_markForwarder;
@@ -962,7 +964,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
 
 
   //// transitions from SF
-  transition(SF, {L1_GETS, L1_GET_INSTR}) {
+  transition(SF, {L1_GETS, L1_GET_INSTR}, SF_B) {
     ds_sendSharedDataToRequestor;
     nn_addSharer;
     mmf_markForwarder;
@@ -1016,7 +1018,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     jj_popL1RequestQueue;
   }
 
-  transition(M, L1_GET_INSTR, SF) {
+  transition(M, L1_GET_INSTR, SF_B) {
     d_sendDataToRequestor;
     nn_addSharer;
     set_setMRU;
