@@ -89,7 +89,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     E, AccessPermission:Read_Only, desc="a L1 cache entry Exclusive";
     M, AccessPermission:Read_Write, desc="a L1 cache entry Modified", format="!b";
     ////for FMESI
-    //F, AccessPermission:Read_Only, desc="a L1 cache entry Forward";
+    F, AccessPermission:Read_Only, desc="a L1 cache entry Forward";
 
     // Transient States
     IS, AccessPermission:Busy, desc="L1 idle, issued GETS, have not seen response yet";
@@ -1277,7 +1277,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
   //  kd_wakeUpDependents;
   //}
 
-  transition(PF_IS, Data_all_Acks, S) {
+  transition(PF_IS, Data_all_Acks_S, S) {
     u_writeDataToL1Cache;
     s_deallocateTBE;
     mp_markPrefetched;
@@ -1293,29 +1293,30 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     kd_wakeUpDependents;
   }
 
-  transition(PF_IS_I, Data_all_Acks, I) {
+  transition(PF_IS_I, Data_all_Acks_S, I) {
     s_deallocateTBE;
     o_popIncomingResponseQueue;
     kd_wakeUpDependents;
   }
 
+ //// commenting for forward state. On dataFfromL1 we only go to F now
+  //transition(IS, DataS_fromL1, S) {
+  //  u_writeDataToL1Cache;
+  //  j_sendUnblock;
+  //  hx_load_hit;
+  //  s_deallocateTBE;
+  //  o_popIncomingResponseQueue;
+  //  kd_wakeUpDependents;
+  //}
 
-  transition(IS, DataS_fromL1, S) {
-    u_writeDataToL1Cache;
-    j_sendUnblock;
-    hx_load_hit;
-    s_deallocateTBE;
-    o_popIncomingResponseQueue;
-    kd_wakeUpDependents;
-  }
-
-  transition(PF_IS, DataS_fromL1, S) {
-    u_writeDataToL1Cache;
-    j_sendUnblock;
-    s_deallocateTBE;
-    o_popIncomingResponseQueue;
-    kd_wakeUpDependents;
-  }
+  //// commenting for forward state. On dataFfromL1 we only go to F now
+  //transition(PF_IS, DataS_fromL1, S) {
+  //  u_writeDataToL1Cache;
+  //  j_sendUnblock;
+  //  s_deallocateTBE;
+  //  o_popIncomingResponseQueue;
+  //  kd_wakeUpDependents;
+  //}
 
   transition(IS_I, DataS_fromL1, I) {
     u_writeDataToL1Cache;
@@ -1402,7 +1403,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     kd_wakeUpDependents;
   }
 
-  transition(PF_IM, Data_all_Acks, M) {
+  transition(PF_IM, Data_all_Acks_S, M) {
     u_writeDataToL1Cache;
     jj_sendExclusiveUnblock;
     s_deallocateTBE;

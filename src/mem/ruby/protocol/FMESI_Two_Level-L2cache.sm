@@ -519,11 +519,11 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
         out_msg.DataBlk := cache_entry.DataBlk;
         out_msg.MessageSize := MessageSizeType:Response_Data;
         //out_msg.AckCount := 0;        
-        if (cache_entry.Exclusive.isElement(in_msg.Requestor)){
-          out_msg.AckCount := 1; //send 1 as Ack if th requestor will go to F in L1
+        if (cache_entry.Exclusive==in_msg.Requestor){
+          out_msg.AckCount := 1; ////send 1 as Ack if th requestor will go to F in L1
         }
         else{
-          out_msg.AckCount := 0; // send 0 as Ack if the requestor will go to S in L1
+          out_msg.AckCount := 0; ////send 0 as Ack if the requestor will go to S in L1
         }
       }
     }
@@ -540,6 +540,12 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
       out_msg.Destination := tbe.L1_GetS_IDs;  // internal nodes
       out_msg.DataBlk := cache_entry.DataBlk;
       out_msg.MessageSize := MessageSizeType:Response_Data;
+      if (cache_entry.Exclusive==in_msg.Requestor){
+        out_msg.AckCount := 1; ////send 1 as Ack if th requestor will go to F in L1
+      }
+      else{
+        out_msg.AckCount := 0; ////send 0 as Ack if the requestor will go to S in L1
+      }      
     }
   }
 
@@ -854,6 +860,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
 
   transition(NP, L1_GETS,  ISS) {
     qq_allocateL2CacheBlock;
+    mmf_markForwarder; //// mark forwarder on NP>ISS transition
     ll_clearSharers;
     nn_addSharer;
     i_allocateTBE;
