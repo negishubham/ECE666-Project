@@ -521,14 +521,21 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
         out_msg.Destination.add(in_msg.Requestor);
         out_msg.DataBlk := cache_entry.DataBlk;
         out_msg.MessageSize := MessageSizeType:Response_Data;
-        //out_msg.AckCount := 0;        
-        if (cache_entry.Exclusive==in_msg.Requestor){
-          out_msg.AckCount := 1; ////send 1 as Ack if th requestor will go to F in L1
-        }
-        else{
-          out_msg.AckCount := 0; ////send 0 as Ack if the requestor will go to S in L1
-        }
+        out_msg.AckCount := 1; ////send 1 as Ack if th requestor will go to F in L1
       }
+    }
+  }
+
+  action(df_sendSharedDataToForwarder, "df", desc="Send data from cache to forwarder") {
+    enqueue(responseL2Network_out, ResponseMsg, l2_response_latency) {
+      assert(is_valid(cache_entry));
+      out_msg.addr := address;
+      out_msg.Type := CoherenceResponseType:DATA;
+      out_msg.Sender := machineID;
+      out_msg.Destination.add(cache_entry.Exclusive);
+      out_msg.DataBlk := cache_entry.DataBlk;
+      out_msg.MessageSize := MessageSizeType:Response_Data;
+      out_msg.AckCount := 1; ////send 1 as Ack if th requestor will go to F in L1
     }
   }
 
@@ -541,14 +548,10 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
       out_msg.Type := CoherenceResponseType:DATA;
       out_msg.Sender := machineID;
       out_msg.Destination := tbe.L1_GetS_IDs;  // internal nodes
+      out_msg.Destination.remove(cache_entry.Exclusive);
       out_msg.DataBlk := cache_entry.DataBlk;
       out_msg.MessageSize := MessageSizeType:Response_Data;
-      if (cache_entry.Exclusive==in_msg.Requestor){
-        out_msg.AckCount := 1; ////send 1 as Ack if th requestor will go to F in L1
-      }
-      else{
-        out_msg.AckCount := 0; ////send 0 as Ack if the requestor will go to S in L1
-      }      
+      out_msg.AckCount := 0; ////send 0 as Ack if the requestor will go to S in L1      
     }
   }
 
@@ -783,15 +786,6 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     }
   }
 
-  //// Same behavior as \m, but doesn't clear sharers list.
-  action(mmf_markForwarder, "\mf", desc = "set the forwarder") {
-    peek(L1RequestL2Network_in, RequestMsg) {
-      assert(is_valid(cache_entry));
-      cache_entry.Exclusive := in_msg.Requestor;
-      addSharer(address, in_msg.Requestor, cache_entry);
-    }
-  }
-
   action(mm_markExclusive, "\m", desc="set the exclusive owner") {
     peek(L1RequestL2Network_in, RequestMsg) {
       assert(is_valid(cache_entry));
@@ -801,7 +795,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     }
   }
 
-//// marking forwarder
+  //// Same behavior as \m, but doesn't clear sharers list.
   action(mmf_markForwarder, "\mf", desc="set the forwarder") {
     peek(L1RequestL2Network_in, RequestMsg) {
       assert(is_valid(cache_entry));
@@ -873,7 +867,6 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
 
   transition(NP, L1_GETS,  ISS) {
     qq_allocateL2CacheBlock;
-    mmf_markForwarder; //// mark forwarder on NP>ISS transition
     ll_clearSharers;
     nn_addSharer;
     //// This requester will either become a forwarder or be exclusive.
@@ -889,6 +882,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     qq_allocateL2CacheBlock;
     ll_clearSharers;
     nn_addSharer;
+    mmf_markForwarder;
     i_allocateTBE;
     ss_recordGetSL1ID;
     a_issueFetchToMemory;
@@ -920,6 +914,8 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
   transition(IS, Mem_Data, SF_B) {
     m_writeDataToCache;
     e_sendDataToGetSRequestors;
+    //// Split "e" into two messages
+    df_sendSharedDataToForwarder;
     s_deallocateTBE;
     o_popIncomingResponseQueue;
     kd_wakeUpDependents;
@@ -1051,6 +1047,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
   transition(M, L1_GET_INSTR, SF_B) {
     d_sendDataToRequestor;
     nn_addSharer;
+    mmf_markForwarder;
     set_setMRU;
     uu_profileHit;
     jj_popL1RequestQueue;
