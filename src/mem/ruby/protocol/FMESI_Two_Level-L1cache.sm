@@ -98,6 +98,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     IS_I, AccessPermission:Busy, desc="L1 idle, issued GETS, saw Inv before data because directory doesn't block on GETS hit";
 
     M_I, AccessPermission:Busy, desc="L1 replacing, waiting for ACK";
+    F_I, AccessPermission:Busy, desc="L1 replacing, waiting for ACK";
     SINK_WB_ACK, AccessPermission:Busy, desc="This is to sink WB_Acks from L2";
 
     // Transient States in which block is being prefetched
@@ -170,7 +171,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
 
   TBETable TBEs, template="<L1Cache_TBE>", constructor="m_number_of_TBEs";
 
-  int l2_select_low_bit, default="RubySystem::getBlockSizeBits()"; ////??
+  int l2_select_low_bit, default="RubySystem::getBlockSizeBits()";
 
   Tick clockEdge();
   Cycles ticksToCycles(Tick t);
@@ -459,7 +460,8 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
   // Mandatory Queue betweens Node's CPU and it's L1 caches
   in_port(mandatoryQueue_in, RubyRequest, mandatoryQueue, desc="...", rank = 0) {
     if (mandatoryQueue_in.isReady(clockEdge())) {
-      peek(mandatoryQueue_in, RubyRequest, block_on="LineAddress") {  ////peek helps to grab the message
+      peek(mandatoryQueue_in, RubyRequest, block_on="LineAddress") {  
+        ////peek helps to grab the message
 
         // Check for data access to blocks in I-cache and ifetchs to blocks in D-cache
 
@@ -674,7 +676,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     }
   }
 
-////action to send data to another cache if we are forwarded the request
+  ////action to send data to another cache if we are forwarded the request
   action(d_sendDataToRequestor, "d", desc="send data to requestor") {
     peek(requestL1Network_in, RequestMsg) {
       enqueue(responseL1Network_out, ResponseMsg, l1_response_latency) {
@@ -1018,7 +1020,8 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
   //*****************************************************
   ////begin state, event to transition on and the end state
   // Transitions for Load/Store/Replacement/WriteBack from transient states
-  transition({IS, IM, IS_I, M_I, SM, SINK_WB_ACK}, {Load, Ifetch, Store, L1_Replacement}) {
+  ////added F_I to the list
+  transition({IS, IM, IS_I, M_I, F_I, SM, SINK_WB_ACK}, {Load, Ifetch, Store, L1_Replacement}) {
     z_stallAndWaitMandatoryQueue;
   }
 
@@ -1029,8 +1032,8 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
   transition({PF_IM, PF_SM}, {Load, Ifetch, L1_Replacement}) {
     z_stallAndWaitMandatoryQueue;
   }
-
-  transition({IS, IM, IS_I, M_I, SM, SINK_WB_ACK, PF_IS, PF_IS_I, PF_IM, PF_SM}, PF_L1_Replacement) {
+  ////added F_I to the list
+  transition({IS, IM, IS_I, M_I, F_I, SM, SINK_WB_ACK, PF_IS, PF_IS_I, PF_IM, PF_SM}, PF_L1_Replacement) {
     z_stallAndWaitOptionalQueue;
   }
 
@@ -1038,8 +1041,8 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
   transition({NP,I}, {L1_Replacement, PF_L1_Replacement}) {
     ff_deallocateL1CacheBlock;
   }
-
-  transition({S,E,M,IS,IM,SM,IS_I,PF_IS_I,M_I,SINK_WB_ACK,PF_IS,PF_IM},
+  ////added F  and F_I to the list
+  transition({S,F, E,M,IS,IM,SM,IS_I,PF_IS_I,M_I, F_I, SINK_WB_ACK,PF_IS,PF_IM},
              {PF_Load, PF_Store, PF_Ifetch}) {
       pq_popPrefetchQueue;
   }
@@ -1245,12 +1248,14 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     l_popRequestQueue;
   }
 
-  transition(M_I, Fwd_GETX, SINK_WB_ACK) {
+  ////added F_I to the list
+  transition({M_I, F_I}, Fwd_GETX, SINK_WB_ACK) {
     dt_sendDataToRequestor_fromTBE;
     l_popRequestQueue;
   }
 
-  transition(M_I, {Fwd_GETS, Fwd_GET_INSTR}, SINK_WB_ACK) {
+  ////added F_I to the list
+  transition({M_I, F_I}, {Fwd_GETS, Fwd_GET_INSTR}, SINK_WB_ACK) {
     dt_sendDataToRequestor_fromTBE;
     d2t_sendDataToL2_fromTBE;
     l_popRequestQueue;
@@ -1299,7 +1304,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     kd_wakeUpDependents;
   }
 
- //// commenting for forward state. On dataFfromL1 we only go to F now
+  //// commenting for forward state. On dataFfromL1 we only go to F now
   //transition(IS, DataS_fromL1, S) {
   //  u_writeDataToL1Cache;
   //  j_sendUnblock;
@@ -1451,7 +1456,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     kd_wakeUpDependents;
   }
 
-//transitions for Forward state
+  //transitions for Forward state
 
   ////added forward state to teh list of beginners
   transition(F, Load) {
@@ -1461,7 +1466,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     k_popMandatoryQueue;
   }
 
- ////added forward state to teh list of beginners
+  ////added forward state to teh list of beginners
   transition(F, Ifetch) {
     h_ifetch_hit;
     uu_profileInstHit;
@@ -1469,7 +1474,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     k_popMandatoryQueue;
   }
 
-//// adding F to SM for forward state
+  //// adding F to SM for forward state
   transition(F, Store, SM) {
     i_allocateTBE;
     c_issueUPGRADE;
@@ -1478,21 +1483,36 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
   }
 
   //// added F to I transition
-  transition(F, {L1_Replacement}, M_I) {
+  transition(F, {L1_Replacement}, F_I) {
     forward_eviction_to_cpu;
     i_allocateTBE;
     g_issuePUTX;   // send data, but hold in case forwarded request
     ff_deallocateL1CacheBlock;
   }
 
-////added forward state to teh list of beginners
+  //// added F_I to SINK_WBACK with extra invalidation ack sent to L2
+  transition(F_I, Inv, SINK_WB_ACK) {
+    ft_sendDataToL2_fromTBE;
+    fi_sendInvAck;
+    l_popRequestQueue;
+  }
+  ////adding F_I>I transition on WB Ack
+  transition(F_I, WB_Ack, I) {
+    s_deallocateTBE;
+    o_popIncomingResponseQueue;
+    kd_wakeUpDependents;
+  }
+
+
+
+  ////added forward state to teh list of beginners
   transition(F, Inv, I) {
     forward_eviction_to_cpu;
     fi_sendInvAck;
     l_popRequestQueue;
   }
 
-////add transition for F state on Fwd_GETS
+  ////add transition for F state on Fwd_GETS
   transition(F, Fwd_GETX, I) {
     forward_eviction_to_cpu;
     d_sendDataToRequestor;
@@ -1525,7 +1545,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
    kd_wakeUpDependents;
   } 
 
-////change S to F for forward state
+  ////change S to F for forward state
   transition(IS, DataS_fromL1, F) {
     u_writeDataToL1Cache;
     j_sendUnblock;

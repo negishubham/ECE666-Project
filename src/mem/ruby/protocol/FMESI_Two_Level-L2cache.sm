@@ -1034,6 +1034,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
 
   transition(SF_B, Unblock, SF) {
     k_popUnblockQueue;
+    kd_wakeUpDependents;
   }
 
 
@@ -1045,9 +1046,9 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
   }
 
   transition(M, L1_GET_INSTR, SF_B) {
-    d_sendDataToRequestor;
+    mmf_markForwarder; //// we already have data in L2 so mark it as forwarder and use df to send data to the requestor L1
+    df_sendSharedDataToForwarder;
     nn_addSharer;
-    mmf_markForwarder;
     set_setMRU;
     uu_profileHit;
     jj_popL1RequestQueue;
