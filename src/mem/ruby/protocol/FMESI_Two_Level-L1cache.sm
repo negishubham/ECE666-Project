@@ -1492,7 +1492,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
 
   //// added F_I to SINK_WBACK with extra invalidation ack sent to L2
   transition(F_I, Inv, SINK_WB_ACK) {
-    ft_sendDataToL2_fromTBE;
+    //ft_sendDataToL2_fromTBE;////don't send data to L2 when doing this because L2 already got the data from putx
     fi_sendInvAck;
     l_popRequestQueue;
   }
