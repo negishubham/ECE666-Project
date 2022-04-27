@@ -1004,7 +1004,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
   }
 
   transition(SF, L1_GETX, SS_MB) {
-    d_sendDataToRequestor;
+    b_forwardRequestToExclusive;
     // fw_sendFwdInvToSharers;
     fwm_sendFwdInvToSharersMinusRequestor;
     set_setMRU;
