@@ -1248,14 +1248,12 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     l_popRequestQueue;
   }
 
-  ////added F_I to the list
-  transition({M_I, F_I}, Fwd_GETX, SINK_WB_ACK) {
+  transition({M_I}, Fwd_GETX, SINK_WB_ACK) {
     dt_sendDataToRequestor_fromTBE;
     l_popRequestQueue;
   }
 
-  ////added F_I to the list
-  transition({M_I, F_I}, {Fwd_GETS, Fwd_GET_INSTR}, SINK_WB_ACK) {
+  transition({M_I}, {Fwd_GETS, Fwd_GET_INSTR}, SINK_WB_ACK) {
     dt_sendDataToRequestor_fromTBE;
     d2t_sendDataToL2_fromTBE;
     l_popRequestQueue;
@@ -1290,7 +1288,7 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     kd_wakeUpDependents;
   }
 
-  transition(IS_I, Data_all_Acks_S, I) {
+  transition(IS_I, {Data_all_Acks_S, Data_all_Acks_F}, I) {
     u_writeDataToL1Cache;
     hx_load_hit;
     s_deallocateTBE;
@@ -1496,6 +1494,15 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     fi_sendInvAck;
     l_popRequestQueue;
   }
+
+  //// don't send data to L2 from F_I
+  transition({F_I}, {Fwd_GETX, Fwd_GETS, Fwd_GET_INSTR}, SINK_WB_ACK) {
+    dt_sendDataToRequestor_fromTBE;
+    l_popRequestQueue;
+  }
+
+
+
   ////adding F_I>I transition on WB Ack
   transition(F_I, WB_Ack, I) {
     s_deallocateTBE;
@@ -1522,9 +1529,15 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
   ////add transition for F state on Fwd_GETS
   transition(F, {Fwd_GETS, Fwd_GET_INSTR}, S) {
     d_sendDataToRequestor;
-    d2_sendDataToL2;
+    //d2_sendDataToL2; ////do not send any data to L2 on F>S
     l_popRequestQueue;
   }
+
+  transition(SM, {Fwd_GETS, Fwd_GET_INSTR}){
+    d_sendDataToRequestor;
+    l_popRequestQueue;
+  }
+
 
   ////data to go to F state
   transition(IS, Data_all_Acks_F, F) {
