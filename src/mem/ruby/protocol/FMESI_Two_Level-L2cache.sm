@@ -283,14 +283,15 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
       }
     } else if (type == CoherenceRequestType:PUTX) {
       if (isSharer(addr, requestor, cache_entry)) {
-        if(cache_entry.Sharers.count()>1){
+        if (is_valid(cache_entry) && cache_entry.Sharers.count() > 1) {
           return Event:L1_PUTX_S;
-        } else {
+        }
+        else {
           return Event:L1_PUTX;
         }
         //return Event:L1_PUTX;
       } else {    
-        if(cache_entry.Sharers.count()>1){
+        if(is_valid(cache_entry) && cache_entry.Sharers.count()>1){
           return Event:L1_PUTX_old_S;
         } else {
           return Event:L1_PUTX_old;
