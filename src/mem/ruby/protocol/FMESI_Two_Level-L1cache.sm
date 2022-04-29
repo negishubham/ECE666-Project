@@ -1288,7 +1288,18 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
     kd_wakeUpDependents;
   }
 
-  transition(IS_I, {Data_all_Acks_S, Data_all_Acks_F}, I) {
+  // directory is blocked when sending someone to forward state
+  transition(IS_I, {Data_all_Acks_F, DataS_fromL1}, F) {
+    u_writeDataToL1Cache;
+    hx_load_hit;
+    j_sendUnblock;
+    s_deallocateTBE;
+    o_popIncomingResponseQueue;
+    kd_wakeUpDependents;
+  }
+
+
+  transition(IS_I, {Data_all_Acks_S}, I) {
     u_writeDataToL1Cache;
     hx_load_hit;
     s_deallocateTBE;
@@ -1321,14 +1332,15 @@ machine(MachineType:L1Cache, "FMESI Directory L1 Cache CMP")
   //  kd_wakeUpDependents;
   //}
 
-  transition(IS_I, DataS_fromL1, I) {
-    u_writeDataToL1Cache;
-    j_sendUnblock;
-    hx_load_hit;
-    s_deallocateTBE;
-    o_popIncomingResponseQueue;
-    kd_wakeUpDependents;
-  }
+  ////commenting because datas from L1 was taking IS>F transition so even here it should go to F
+  //transition(IS_I, DataS_fromL1, I) {
+  //  u_writeDataToL1Cache;
+  //  j_sendUnblock;
+  //  hx_load_hit;
+  //  s_deallocateTBE;
+  //  o_popIncomingResponseQueue;
+  //  kd_wakeUpDependents;
+  //}
 
   transition(PF_IS_I, DataS_fromL1, I) {
     j_sendUnblock;
