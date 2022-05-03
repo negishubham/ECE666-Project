@@ -113,8 +113,6 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     L1_PUTX_S,                 desc="L1 replacing data";
    
     L1_PUTX_old,             desc="L1 replacing data, but no longer sharer";
-    ////adding extra event when #sharer>1
-    L1_PUTX_old_S,             desc="L1 replacing data, but no longer sharer";
 
     // events initiated by this L2
     L2_Replacement,     desc="L2 Replacement", format="!r";
@@ -291,13 +289,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
         }
         //return Event:L1_PUTX;
       } else {    
-        if(is_valid(cache_entry) && cache_entry.Sharers.count()>1){
-          return Event:L1_PUTX_old_S;
-        } else {
-          return Event:L1_PUTX_old;
-        }
-        
-        //return Event:L1_PUTX_old;
+        return Event:L1_PUTX_old;
       }
     } else {
       DPRINTF(RubySlicc, "address: %#x, Request Type: %s\n", addr, type);
@@ -860,11 +852,11 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
   }
 
   //// don't serve L1_replacement until you are in SF(i.e. the load is complete)
-  transition({MT_IB, MT_SB}, {L1_PUTX, L1_PUTX_S, L1_PUTX_old, L1_PUTX_old_S}){
+  transition({MT_IB, MT_SB}, {L1_PUTX, L1_PUTX_S, L1_PUTX_old}){
     zz_stallAndWaitL1RequestQueue;
   }
 
-  transition({NP, SS, M, MT, M_I, I_I, S_I, IS, ISS, IM}, {L1_PUTX_old, L1_PUTX_old_S}) {
+  transition({NP, SS, M, MT, M_I, I_I, S_I, IS, ISS, IM, SF}, L1_PUTX_old) {
     t_sendWBAck;
     jj_popL1RequestQueue;
   }
@@ -1047,7 +1039,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
   }
   
   //// changed to M, when #sharers=0 go to M
-  transition(SF, {L1_PUTX, L1_PUTX_old}, M) {
+  transition(SF, L1_PUTX, M) {
     //// Don't need to do anything with WB data, just send an ack.
     t_sendWBAck;
     
@@ -1057,7 +1049,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
   }
 
   //// when #sharers>1 go to SS
-  transition(SF, {L1_PUTX_S, L1_PUTX_old_S}, SS) {
+  transition(SF, L1_PUTX_S, SS) {
     //// Don't need to do anything with WB data, just send an ack.
     t_sendWBAck;
     //// Remove from sharers list
@@ -1151,7 +1143,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     kd_wakeUpDependents;
   }
 
-  transition(MT_IIB, {L1_PUTX, L1_PUTX_S, L1_PUTX_old, L1_PUTX_old_S}){
+  transition(MT_IIB, {L1_PUTX, L1_PUTX_S, L1_PUTX_old}){
     zz_stallAndWaitL1RequestQueue;
   }
 
@@ -1203,7 +1195,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     o_popIncomingResponseQueue;
   }
 
-  transition(MCT_I,  {L1_PUTX, L1_PUTX_S, L1_PUTX_old, L1_PUTX_old_S}){
+  transition(MCT_I,  {L1_PUTX, L1_PUTX_S, L1_PUTX_old}){
     zz_stallAndWaitL1RequestQueue;
   }
 
@@ -1213,12 +1205,12 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
     o_popIncomingResponseQueue;
   }
 
-  transition(MT_I, {L1_PUTX, L1_PUTX_S, L1_PUTX_old, L1_PUTX_old_S}){
+  transition(MT_I, {L1_PUTX, L1_PUTX_S, L1_PUTX_old}){
     zz_stallAndWaitL1RequestQueue;
   }
 
   // possible race between unblock and immediate replacement
-  transition({MT_MB,SS_MB, SF_B}, {L1_PUTX, L1_PUTX_S, L1_PUTX_old, L1_PUTX_old_S}) {
+  transition({MT_MB,SS_MB, SF_B}, {L1_PUTX, L1_PUTX_S, L1_PUTX_old}) {
     zz_stallAndWaitL1RequestQueue;
   }
 
