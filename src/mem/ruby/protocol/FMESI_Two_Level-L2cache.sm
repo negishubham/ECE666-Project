@@ -448,7 +448,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
   }
 
   action(c_exclusiveReplacement, "c", desc="Send data to memory") {
-    enqueue(responseL2Network_out, ResponseMsg, l2_data_response_latency) { //// changed this to data_response latency
+    enqueue(responseL2Network_out, ResponseMsg, l2_response_latency) {
       assert(is_valid(cache_entry));
       out_msg.addr := address;
       out_msg.Type := CoherenceResponseType:MEMORY_DATA;
@@ -552,7 +552,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
   action(e_sendDataToGetSRequestors, "e", desc="Send data from cache to all GetS IDs") {
     assert(is_valid(tbe));
     assert(tbe.L1_GetS_IDs.count() > 0);
-    enqueue(responseL2Network_out, ResponseMsg, to_l1_latency) {
+    enqueue(responseL2Network_out, ResponseMsg, l2_data_response_latency) { //// changed this to data_response latency
       assert(is_valid(cache_entry));
       out_msg.addr := address;
       out_msg.Type := CoherenceResponseType:DATA;
@@ -568,7 +568,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
   action(ex_sendExclusiveDataToGetSRequestors, "ex", desc="Send data from cache to all GetS IDs") {
     assert(is_valid(tbe));
     assert(tbe.L1_GetS_IDs.count() == 1);
-    enqueue(responseL2Network_out, ResponseMsg, to_l1_latency) {
+    enqueue(responseL2Network_out, ResponseMsg, l2_data_response_latency) { //// changed this to data_response latency
       assert(is_valid(cache_entry));
       out_msg.addr := address;
       out_msg.Type := CoherenceResponseType:DATA_EXCLUSIVE;
@@ -580,7 +580,7 @@ machine(MachineType:L2Cache, "FMESI Directory L2 Cache CMP")
   }
 
   action(ee_sendDataToGetXRequestor, "ee", desc="Send data from cache to GetX ID") {
-    enqueue(responseL2Network_out, ResponseMsg, to_l1_latency) {
+    enqueue(responseL2Network_out, ResponseMsg, l2_data_response_latency) {
       assert(is_valid(tbe));
       assert(is_valid(cache_entry));
       out_msg.addr := address;
