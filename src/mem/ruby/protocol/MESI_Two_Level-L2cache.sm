@@ -610,7 +610,7 @@ machine(MachineType:L2Cache, "MESI Directory L2 Cache CMP")
   action(i_allocateTBE, "i", desc="Allocate TBE for request") {
     check_allocate(TBEs);
     assert(is_valid(cache_entry));
-    TBEs.allocate(address);:wait
+    TBEs.allocate(address);
     set_tbe(TBEs[address]);
     tbe.L1_GetS_IDs.clear();
     tbe.DataBlk := cache_entry.DataBlk;
