@@ -473,7 +473,7 @@ machine(MachineType:L2Cache, "MESI Directory L2 Cache CMP")
 
   action(d_sendDataToRequestor, "d", desc="Send data from cache to reqeustor") {
     peek(L1RequestL2Network_in, RequestMsg) {
-      enqueue(responseL2Network_out, ResponseMsg, l2_response_latency) {
+      enqueue(responseL2Network_out, ResponseMsg, l2_data_response_latency) {
         assert(is_valid(cache_entry));
         out_msg.addr := address;
         out_msg.Type := CoherenceResponseType:DATA;
@@ -492,7 +492,7 @@ machine(MachineType:L2Cache, "MESI Directory L2 Cache CMP")
 
   action(dd_sendExclusiveDataToRequestor, "dd", desc="Send data from cache to reqeustor") {
     peek(L1RequestL2Network_in, RequestMsg) {
-      enqueue(responseL2Network_out, ResponseMsg, l2_response_latency) {
+      enqueue(responseL2Network_out, ResponseMsg, l2_data_response_latency) {
         assert(is_valid(cache_entry));
         out_msg.addr := address;
         out_msg.Type := CoherenceResponseType:DATA_EXCLUSIVE;
@@ -511,7 +511,7 @@ machine(MachineType:L2Cache, "MESI Directory L2 Cache CMP")
 
   action(ds_sendSharedDataToRequestor, "ds", desc="Send data from cache to reqeustor") {
     peek(L1RequestL2Network_in, RequestMsg) {
-      enqueue(responseL2Network_out, ResponseMsg, l2_response_latency) {
+      enqueue(responseL2Network_out, ResponseMsg, l2_data_response_latency) {
         assert(is_valid(cache_entry));
         out_msg.addr := address;
         out_msg.Type := CoherenceResponseType:DATA;
@@ -527,7 +527,7 @@ machine(MachineType:L2Cache, "MESI Directory L2 Cache CMP")
   action(e_sendDataToGetSRequestors, "e", desc="Send data from cache to all GetS IDs") {
     assert(is_valid(tbe));
     assert(tbe.L1_GetS_IDs.count() > 0);
-    enqueue(responseL2Network_out, ResponseMsg, to_l1_latency) {
+    enqueue(responseL2Network_out, ResponseMsg, l2_data_response_latency) {
       assert(is_valid(cache_entry));
       out_msg.addr := address;
       out_msg.Type := CoherenceResponseType:DATA;
@@ -541,7 +541,7 @@ machine(MachineType:L2Cache, "MESI Directory L2 Cache CMP")
   action(ex_sendExclusiveDataToGetSRequestors, "ex", desc="Send data from cache to all GetS IDs") {
     assert(is_valid(tbe));
     assert(tbe.L1_GetS_IDs.count() == 1);
-    enqueue(responseL2Network_out, ResponseMsg, to_l1_latency) {
+    enqueue(responseL2Network_out, ResponseMsg, l2_data_response_latency) {
       assert(is_valid(cache_entry));
       out_msg.addr := address;
       out_msg.Type := CoherenceResponseType:DATA_EXCLUSIVE;
@@ -553,7 +553,7 @@ machine(MachineType:L2Cache, "MESI Directory L2 Cache CMP")
   }
 
   action(ee_sendDataToGetXRequestor, "ee", desc="Send data from cache to GetX ID") {
-    enqueue(responseL2Network_out, ResponseMsg, to_l1_latency) {
+    enqueue(responseL2Network_out, ResponseMsg, l2_data_response_latency) {
       assert(is_valid(tbe));
       assert(is_valid(cache_entry));
       out_msg.addr := address;
@@ -610,7 +610,7 @@ machine(MachineType:L2Cache, "MESI Directory L2 Cache CMP")
   action(i_allocateTBE, "i", desc="Allocate TBE for request") {
     check_allocate(TBEs);
     assert(is_valid(cache_entry));
-    TBEs.allocate(address);
+    TBEs.allocate(address);:wait
     set_tbe(TBEs[address]);
     tbe.L1_GetS_IDs.clear();
     tbe.DataBlk := cache_entry.DataBlk;
