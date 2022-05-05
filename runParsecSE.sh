@@ -112,7 +112,7 @@ for bm_name in "${bm_names[@]}"; do
     # eval ${EXEC_CMD}
 
     bm_hw_cmd="${bm_dir}/bin/parsecmgmt -a run -p ${bm_name} -i ${bm_dataset} -x pre"
-    eval ${bm_hw_cmd}
+    eval ${bm_hw_cmd} >${gem5_out_dir}/golden.out
 
     cd ${run_path}
 
@@ -123,7 +123,7 @@ for bm_name in "${bm_names[@]}"; do
     exec_cmd="${gem5_cmd} -c ${bm_run_exec} -o \"${run_args}\""
     echo ${exec_cmd}
     # eval "${exec_cmd}"
-    eval "nohup ${exec_cmd} &"
+    eval "nohup ${exec_cmd} &" >${gem5_out_dir}/nohup.out
 
     debug_cmd="gdb --args ${gem5_opt} -d ${gem5_out_dir} ${gem5_args} -c ${bm_run_exec} -o \"${run_args}\""
     # echo ${debug_cmd} 
