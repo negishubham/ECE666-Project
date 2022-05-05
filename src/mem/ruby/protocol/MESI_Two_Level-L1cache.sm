@@ -39,6 +39,7 @@
  */
 
 machine(MachineType:L1Cache, "MESI Directory L1 Cache CMP")
+////before {} are all the parameters 
  : Sequencer * sequencer;
    CacheMemory * L1Icache;
    CacheMemory * L1Dcache;
@@ -52,7 +53,7 @@ machine(MachineType:L1Cache, "MESI Directory L1 Cache CMP")
 
    // Message Queues
    // From this node's L1 cache TO the network
-
+    ////message buffers are interface between Ruby network and the state machine, for each virtual channel we need a message buffer, higher numbers mean higher priority
    // a local L1 -> this L2 bank, currently ordered with directory forwarded requests
    MessageBuffer * requestFromL1Cache, network="To", virtual_network="0",
         vnet_type="request";
