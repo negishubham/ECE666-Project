@@ -111,7 +111,7 @@ for bm_name in "${bm_names[@]}"; do
     # echo ${EXEC_CMD}
     # eval ${EXEC_CMD}
 
-    bm_hw_cmd="${gem5_dir}/../benchmarks/parsec-2.1/bin/parsecmgmt -a run -p ${bm_name} -i ${bm_dataset} -x pre"
+    bm_hw_cmd="${bm_dir}/bin/parsecmgmt -a run -p ${bm_name} -i ${bm_dataset} -x pre"
     eval ${bm_hw_cmd}
 
     cd ${run_path}
