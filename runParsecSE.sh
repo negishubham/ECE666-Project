@@ -85,7 +85,7 @@ for bm_name in "${bm_names[@]}"; do
     source ${bm_runconf}
 
     bm_run_exec="${bm_dir}/${bm_subdir}/${bm_build}/${run_exec}"
-    run_path="${bm_dir}/pkgs/apps/${bm_name}/run"
+    run_path="${bm_dir}/${bm_subdir}/run"
 
     gem5_out_dir="${gem5_dir}/${gem5_result_prefix}/m5out-${gem5_test_case}/${bm_name}"
     rm -rf ${gem5_out_dir}
@@ -107,6 +107,15 @@ for bm_name in "${bm_names[@]}"; do
     printf "bm_dataset=\"${bm_dataset}\"\n" >> ${cfg_file_path}
     printf "" >> ${cfg_file_path}
 
+    # Write environment config to file
+    env_file="env.sh"
+    env_file_path="${gem5_out_dir}/${env_file}"
+    touch ${env_file_path}
+    echo "Writing environment variables to ${env_file_path}"
+    # env > ${env_file_path}
+    printf "OMP_NUM_THREADS=\"${bm_NTHREADS}\"\n" >> ${env_file_path}
+
+
     # EXEC_CMD="${gem5_exec} -n 4 -c  ${bm_run_exec} -o \"${bm_NTHREADS} ${run_path}/in_4K.txt ${run_path}/prices.txt\""
     # echo ${EXEC_CMD}
     # eval ${EXEC_CMD}
@@ -120,7 +129,7 @@ for bm_name in "${bm_names[@]}"; do
     bm_args="${run_args}"
     # gem5_cmd="${gem5_opt} --debug-flags=ProtocolTrace -d ${gem5_out_dir} ${gem5_args}"
     gem5_cmd="${gem5_opt} -d ${gem5_out_dir} ${gem5_args}"
-    exec_cmd="${gem5_cmd} -c ${bm_run_exec} -o \"${run_args}\""
+    exec_cmd="${gem5_cmd} -e ${env_file_path} -c ${bm_run_exec} -o \"${run_args}\""
     echo ${exec_cmd}
     # eval "${exec_cmd}"
     eval "nohup ${exec_cmd} &" >${gem5_out_dir}/nohup.out
