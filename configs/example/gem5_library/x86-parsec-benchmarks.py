@@ -67,7 +67,7 @@ from m5.stats.gem5stats import get_simstat
 
 requires(
     isa_required = ISA.X86,
-    coherence_protocol_required=CoherenceProtocol.MESI_TWO_LEVEL,
+    coherence_protocol_required=CoherenceProtocol.FMESI_TWO_LEVEL,
     kvm_required=True,
 )
 
@@ -102,17 +102,23 @@ parser.add_argument(
     help = "Simulation size the benchmark program.",
     choices = size_choices,
 )
+
+parser.add_argument(
+    "--n_proc",
+    type = int,
+    default=4)
+
 args = parser.parse_args()
 
 # Setting up all the fixed system parameters here
 # Caches: MESI Two Level Cache Hierarchy
 
 from gem5.components.cachehierarchies.ruby.\
-    mesi_two_level_cache_hierarchy import(
-    MESITwoLevelCacheHierarchy,
+    fmesi_two_level_cache_hierarchy import(
+    FMESITwoLevelCacheHierarchy,
 )
 
-cache_hierarchy = MESITwoLevelCacheHierarchy(
+cache_hierarchy = FMESITwoLevelCacheHierarchy(
     l1d_size = "32kB",
     l1d_assoc = 8,
     l1i_size="32kB",
@@ -137,7 +143,7 @@ memory = DualChannelDDR4_2400(size = "3GB")
 processor = SimpleSwitchableProcessor(
     starting_core_type=CPUTypes.KVM,
     switch_core_type=CPUTypes.TIMING,
-    num_cores=2,
+    num_cores=args.n_proc,
 )
 
 # Here we setup the board. The X86Board allows for Full-System X86 simulations
@@ -165,9 +171,10 @@ board = X86Board(
 command = "cd /home/gem5/parsec-benchmark;".format(args.benchmark) \
     + "source env.sh;" \
     + "parsecmgmt -a run -p {} -c gcc-hooks -i {} \
-        -n {};".format(args.benchmark, args.size, "2") \
+        -n {};".format(args.benchmark, args.size, args.n_proc) \
     + "sleep 5;" \
     + "m5 exit;" \
+# print('Command====== %s',command)
 
 board.set_kernel_disk_workload(
     # The x86 linux kernel will be automatically downloaded to the
